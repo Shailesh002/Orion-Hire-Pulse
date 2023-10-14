@@ -1,152 +1,149 @@
 import React, { useState } from 'react'
+import {
+  EditOutlined,
+  OrderedListOutlined,
+} from '@ant-design/icons';
 import DefaultLayout from '../components/defaultLayout'
-import { Row, Col, Form, Tabs, Input, Select } from 'antd'
-import { useDispatch } from 'react-redux'
-import { postJob } from '../redux/actions/jobActions'
-const { TabPane } = Tabs
-const { Option } = Select
+import { useSelector } from 'react-redux/es/hooks/useSelector'
+import { Modal, Table } from 'antd';
+import moment from 'moment';
+import { Link, useNavigate } from "react-router-dom"
+import ColumnGroup from 'antd/es/table/ColumnGroup';
 
 
-function PostJob() {
+function PostedJobs() {
+  const navigate = useNavigate();
+  const allusers = useSelector((state) => state.usersReducer).users;
 
-  const [jobInfo, setJobInfo] = useState({});
-  const [activeTab, setActiveTab] = useState('0');
-  const dispatch=useDispatch();
+  const user = JSON.parse(localStorage.getItem("user"))
+  const alljobs = useSelector((state) => state.jobsReducer).jobs;
 
+  const userid = user._id;
 
-  function onFirstFormFinish(values) {
-    setJobInfo(values);
-    setActiveTab('1');
+  const userPostedJobs = alljobs.filter((job) => job.postedBy == userid);
+
+  // Modal Hook
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState()
+
+  const columns = [
+    {
+      title: "Title",
+      dataIndex: "title",
+    },
+    {
+      title: "Company",
+      dataIndex: "company",
+    },
+    {
+      title: "Posted On",
+      dataIndex: "postedOn",
+    },
+    {
+      title: "Total Candidates",
+      dataIndex: "appliedCandidates",
+    },
+    {
+      title: 'Actions',
+      render: (text, data) => {
+        return (
+          <div className='flex'>
+
+            <EditOutlined style={{ fontSize: 20 }} onClick={() => {
+              navigate(`/editjob/${data.completeJobData._id}`)
+            }} />
+
+            <OrderedListOutlined style={{ fontSize: 20 }} onClick={() => { showModal(data.completeJobData) }} />
+          </div>
+        )
+      }
+    }
+  ];
+
+  const dataSource = []
+
+  for (var job of userPostedJobs) {
+    var obj = {
+      title: job.title,
+      company: job.company,
+      postedOn: moment(job.createdAt).format("MMM DD yyyy"),
+      appliedCandidates: job.appliedCandidates.length,
+      completeJobData: job
+    };
+    dataSource.push(obj);
   }
 
-  function onFinalFormFinish(values){
-    const finalObj={... jobInfo, ...values};
-    console.log(finalObj)
-    dispatch(postJob(finalObj));
+  // Modal Handle functions
+  const showModal = (job) => {
+    setIsModalOpen(true);
+    setSelectedJob(job);
+  };
+
+  const handleOk = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleCancel = () => {
+    setIsModalOpen(false);
+  };
+
+  function CandidatesList() {
+
+    const candidatesColumns = [
+      {
+        title: 'Candidate ID',
+        dataIndex: "candidateId",
+        render: (text, data) => {
+          return <Link to={`/users/${data.candidateId}`}>{data.candidateId}</Link>
+        }
+      },
+      {
+        title: "Full Name",
+        dataIndex: "fullName",
+      },
+      {
+        title: "Applied Date",
+        dataIndex: "appliedDate",
+      }
+    ]
+
+    var candidatesDataSource = [];
+
+    
+    for (var candidate of selectedJob.appliedCandidates) {
+      var user = allusers.find((user) => user._id == candidate.userid);
+      
+      var obj = {
+        candidateId: user._id,
+        fullName: user.firstName + " " + user.lastName,
+        appliedDate: candidate.appliedDate,
+      };
+      candidatesDataSource.push(obj)
+    }
+
+
+
+    return (
+      <Table columns={candidatesColumns}
+        dataSource={candidatesDataSource} />
+    )
+
   }
 
   return (
     <div>
       <DefaultLayout>
+        <h1>Posted Jobs</h1>
 
-        <Tabs defaultActiveKey='0' activeKey={activeTab}>
-          <TabPane tab='Job Info' key='0'>
+        <Table columns={columns} dataSource={dataSource} />
 
-            <Form layout='vertical' onFinish={onFirstFormFinish}>
-              <Row gutter={16}>
-                <Col lg={8} sm={24}>
-                  <Form.Item name='title' rules={[{ required: true }]} label='Title'>
-                    <Input />
-                  </Form.Item>
-                </Col>
+        <Modal title="Candidates Applied" open={isModalOpen} onOk={handleOk} onCancel={handleCancel} width={800} closable={false}>
+          <CandidatesList />
+        </Modal>
 
-                <Col lg={8} sm={24}>
-                  <Form.Item name='department' rules={[{ required: true }]} label='Department'>
-                    <Input />
-                  </Form.Item>
-                </Col>
-
-                <Col lg={8} sm={24}>
-                  <Form.Item name='experience' rules={[{ required: true }]} label='Experience'>
-                    <Input />
-                  </Form.Item>
-                </Col>
-
-                <Col lg={8} sm={24}>
-                  <Form.Item name='salaryFrom' rules={[{ required: true }]} label='Salary From'>
-                    <Input type='number' />
-                  </Form.Item>
-                </Col>
-
-                <Col lg={8} sm={24}>
-                  <Form.Item name='salaryTo' rules={[{ required: true }]} label='Salary To'>
-                    <Input type='number' />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={16}>
-
-                <Col lg={8} sm={24}>
-                  <Form.Item name='skillsRequired' rules={[{ required: true }]} label='Skills'>
-                    <Input />
-                  </Form.Item>
-                </Col>
-
-                <Col lg={8} sm={24}>
-                  <Form.Item name='minimumQualification' rules={[{ required: true }]} label='Minimum Qualification'>
-                    <Select>
-                      <Option value='High School Diploma'>High School Diploma</Option>
-                      <Option value='BA'>BA</Option>
-                      <Option value='BTech'>BTech</Option>
-                      <Option value='MA'>MA</Option>
-                    </Select>
-
-                  </Form.Item>
-                </Col>
-
-                <Col lg={24} sm={24}>
-                  <Form.Item name='smallDescription' rules={[{ required: true }]} label='Small Description'>
-                    <Input.TextArea rows={3} />
-                  </Form.Item>
-                </Col>
-
-                <Col lg={24} sm={24}>
-                  <Form.Item name='fullDescription' rules={[{ required: true }]} label='Full Description'>
-                    <Input.TextArea rows={6} />
-                  </Form.Item>
-                </Col>
-
-              </Row>
-
-              <button class="button-30" type='submit'>Next</button>
-
-            </Form>
-          </TabPane>
-          <TabPane tab='Company Info' key='1'>
-
-            <Form layout='vertical' onFinish={onFinalFormFinish}>
-              <Row gutter={16}>
-                <Col lg={8} sm={24}>
-                  <Form.Item name='company' rules={[{ required: true }]} label='Company Name'>
-                    <Input />
-                  </Form.Item>
-                </Col>
-
-
-                <Col lg={8} sm={24}>
-                  <Form.Item name='email' rules={[{ required: true }]} label='Company Email'>
-                    <Input />
-                  </Form.Item>
-                </Col>
-
-
-                <Col lg={8} sm={24}>
-                  <Form.Item name='phoneNumber' rules={[{ required: true }]} label='Phone Number'>
-                    <Input />
-                  </Form.Item>
-                </Col>
-
-
-                <Col lg={24} sm={24}>
-                  <Form.Item name='companyDescription' rules={[{ required: true }]} label='Company Description'>
-                    <Input.TextArea rows={3} /></Form.Item>
-
-                </Col>
-              </Row>
-
-              <button class="button-30" type='submit' onClick={()=>{setActiveTab("0")}}>Prev</button>
-
-              <button class="button-29">Post</button>
-
-            </Form>
-
-          </TabPane>
-        </Tabs>
       </DefaultLayout>
-
     </div>
   )
 }
 
-export default PostJob
+export default PostedJobs
